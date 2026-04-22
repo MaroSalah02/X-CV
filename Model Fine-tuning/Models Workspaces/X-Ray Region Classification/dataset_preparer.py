@@ -13,6 +13,18 @@ class LazyLoadingImageDataset(Dataset):
         return len(self.dataset)
     
     def __getitem__(self, idx):
+        # Handle batch indices (list of indices)
+        if isinstance(idx, list):
+            items = [self._get_single_item(i) for i in idx]
+            # Convert list of dicts to dict of lists
+            batch = {}
+            for key in items[0].keys():
+                batch[key] = [item[key] for item in items]
+            return batch
+        
+        return self._get_single_item(idx)
+    
+    def _get_single_item(self, idx):
         row = self.dataset[idx]
         image_path = row["image"]
         image = Image.open(image_path)
