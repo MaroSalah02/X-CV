@@ -2,6 +2,9 @@ from  Inference_Modules.region_classification import RegionClassifierModel
 from pathlib import Path
 from PIL import Image
 import os
+from fastapi import FastAPI, WebSocket
+from PIL import Image
+import io
 
 # Comment if not using an AMD RDNA3 GPU
 os.environ["HSA_OVERRIDE_GFX_VERSION"] = "11.0.0"
@@ -10,29 +13,47 @@ os.environ["HSA_OVERRIDE_GFX_VERSION"] = "11.0.0"
 pipeline_dir = Path(__file__).parent
 model_dir = pipeline_dir / "Inference_Modules/models/region_classification"
 region_classifier_model = RegionClassifierModel(model_dir=model_dir)
+app = FastAPI()
 
-# You should handle extracting the image from the request and passing it to the pipeline
-# The return should be a dict containing the LLMs response in addition to the image with the bounding box drawn on it
-def run_pipeline(image) -> dict:
-    # Region Classification
-    # Send result via websocket to frontend
+async def run_pipeline(image: str):
+    region_result = region_classifier_model.predict(image)
+    yield {"step": "region_classification", "result": region_result}
 
-    # Fracture Detection
-    # Send result via websocket to frontend
+    #should be the output of the region classifier, but for testing we set it to False
+    fracture_result = False
 
-    # if fracture
-        # Bounding Box (if fracture)
-        # Send result to frontend via websocket
+    yield {"step": "fracture_detection", "result": fracture_result}
 
-    
-    # LLM Api Call
-    # Send result to frontend via websocket
+    if fracture_result:
+        #should be the output of the bounding box model, but for testing we set it to None
+        bbox_result = None
+        yield {"step": "bounding_box", "result": bbox_result}
 
-    #close socket connection
-    pass
+    #same goes here now you get it
+    llm_output = None
+    yield {"step": "llm", "result": {"text": llm_output}}
 
-if __name__ == "__main__":
-    # Have an api endpoint triggering the method "run_pipeline", waiting for call
-    image_filepath = "/home/omarriad/Documents/10th Sem/DMET 1067 - Deep Learning in Computer Vision/Project Milestone 2/Model Fine-tuning/Datasets - Unsplit/X-Ray Region Classification/Tibia_and_Fibula/fracture_00003.png"
-    output = region_classifier_model.predict(Image.open(image_filepath))
-    print(output)
+
+@app.websocket("/scan")
+async def scan(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        image_bytes = await websocket.receive_bytes()
+        image = Image.open(io.BytesIO(image_bytes))  # PIL Image, ready to use
+
+        async for update in run_pipeline(image):
+            await websocket.send_json(update)
+
+        await websocket.send_json({"step": "pipeline", "status": "complete"})
+
+    except Exception as e:
+        await websocket.send_json({"step": "error", "detail": str(e)})
+    finally:
+        await websocket.close()
+        
+
+# if __name__ == "__main__":
+#     # Have an api endpoint triggering the method "run_pipeline", waiting for call
+#     image_filepath = "/home/omarriad/Documents/10th Sem/DMET 1067 - Deep Learning in Computer Vision/Project Milestone 2/Model Fine-tuning/Datasets - Unsplit/X-Ray Region Classification/Tibia_and_Fibula/fracture_00003.png"
+#     output = region_classifier_model.predict(Image.open(image_filepath))
+#     print(output)
