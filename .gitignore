@@ -7,3 +7,5 @@ Model Fine-tuning/X-Ray Region Classification/cached_downloads/*
 .ipynb_checkpoints/
 
 __pycache__/
+Model Fine-tuning/*/*/output/checkpoints/checkpoint*
+Model Fine-tuning/*/*/Archive/*
