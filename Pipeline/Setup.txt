@@ -1,0 +1,5 @@
+# Terminal 1 - start the server
+uvicorn main:app --reload
+
+# Terminal 2 - run the test
+python test.py

@@ -2,8 +2,11 @@ Model Fine-tuning/Datasets - Unsplit/*
 Model Fine-tuning/Datasets - Raw/*
 Model Fine-tuning/*/*/input/*
 Model Fine-tuning/X-Ray Region Classification/cached_downloads/*
+Pipeline/Inference_Modules/models/*/*
 !.gitkeep
 
 .ipynb_checkpoints/
 
 __pycache__/
+Model Fine-tuning/*/*/output/checkpoints/checkpoint*
+Model Fine-tuning/*/*/Archive/*
