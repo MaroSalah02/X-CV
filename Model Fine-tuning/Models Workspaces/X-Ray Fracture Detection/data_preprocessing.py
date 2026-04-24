@@ -59,66 +59,15 @@ def get_transforms(phase: str) -> transforms.Compose:
         ])
 
 
-def get_dataset_A(root_dir: str, phase: str) -> ImageFolder:
-    """
-    Load Dataset A (Bone_Fracture_Binary_Classification) with predefined splits.
-
-    Args:
-        root_dir (str): Path to Bone_Fracture_Binary_Classification directory
-        phase (str): One of 'train', 'val', or 'test'
-
-    Returns:
-        ImageFolder: Dataset with custom class_to_idx mapping
-
-    Raises:
-        ValueError: If phase is invalid
-        FileNotFoundError: If directory structure is incorrect
-    """
-    if phase not in ['train', 'val', 'test']:
-        raise ValueError(f"phase must be 'train', 'val', or 'test', got {phase}")
-
-    phase_dir = os.path.join(root_dir, phase)
-    if not os.path.exists(phase_dir):
-        raise FileNotFoundError(f"Phase directory not found: {phase_dir}")
-
-    # Create dataset with custom class_to_idx to handle space in folder name
-    dataset = ImageFolder(
-        root=phase_dir,
-        transform=get_transforms(phase)
-    )
-
-    # Override class_to_idx to ensure correct mapping
-    # ImageFolder reads folders alphabetically, so it may be 'fractured' first or 'not fractured' first
-    # We want to enforce: 'not fractured' (with space) -> 0, 'fractured' -> 1
-    original_classes = dataset.classes
-    if len(original_classes) != 2:
-        raise ValueError(f"Expected 2 classes, found {len(original_classes)}: {original_classes}")
-
-    # Remap to ensure correct labels regardless of alphabetical order
-    dataset.class_to_idx = {'fractured': 1, 'not fractured': 0}
-    dataset.classes = ['not fractured', 'fractured']
-
-    # Remap existing indices
-    for idx, (path, old_class) in enumerate(dataset.imgs):
-        old_label = old_class
-        folder_name = os.path.basename(os.path.dirname(path))
-        if folder_name == 'fractured':
-            dataset.imgs[idx] = (path, 1)
-            dataset.samples[idx] = (path, 1)
-        elif folder_name == 'not fractured':
-            dataset.imgs[idx] = (path, 0)
-            dataset.samples[idx] = (path, 0)
-
-    return dataset
-
-
-def get_dataset_B(root_dir: str, split_ratios: Tuple[float, float, float] = (0.7, 0.15, 0.15),
+def get_dataset_A(root_dir: str, split_ratios: Tuple[float, float, float] = (0.7, 0.15, 0.15),
                   phase: str = 'train', seed: int = 42) -> Subset:
     """
-    Load Dataset B (Bone fracture dataset) with manual train/val/test split.
+    Load Dataset A (Bone_Fracture_Binary_Classification) with manual train/val/test split.
+
+    This dataset has no predefined splits, only fracture/ and normal/ folders.
 
     Args:
-        root_dir (str): Path to Dataset/Fracture dataset directory (containing fracture/ and normal/)
+        root_dir (str): Path to Bone_Fracture_Binary_Classification directory (containing fracture/ and normal/)
         split_ratios (Tuple[float, float, float]): (train_ratio, val_ratio, test_ratio)
         phase (str): One of 'train', 'val', or 'test'
         seed (int): Random seed for reproducibility
@@ -140,7 +89,7 @@ def get_dataset_B(root_dir: str, split_ratios: Tuple[float, float, float] = (0.7
     normal_dir = os.path.join(root_dir, 'normal')
 
     if not os.path.exists(fracture_dir) or not os.path.exists(normal_dir):
-        raise FileNotFoundError(f"Dataset structure incorrect. Expected fracture/ and normal/ directories")
+        raise FileNotFoundError(f"Dataset structure incorrect. Expected fracture/ and normal/ directories in {root_dir}")
 
     # Load all image paths and labels
     images = []
@@ -183,7 +132,7 @@ def get_dataset_B(root_dir: str, split_ratios: Tuple[float, float, float] = (0.7
         stratify=np.array(labels)[temp_indices]
     )
 
-    # Create a simple dataset class for Dataset B
+    # Create a simple dataset class for Dataset A
     class SimpleImageDataset(torch.utils.data.Dataset):
         def __init__(self, image_paths, labels, transform=None):
             self.image_paths = image_paths
@@ -217,6 +166,59 @@ def get_dataset_B(root_dir: str, split_ratios: Tuple[float, float, float] = (0.7
         indices = test_indices
 
     return Subset(full_dataset, indices)
+
+
+def get_dataset_B(root_dir: str, phase: str) -> ImageFolder:
+    """
+    Load Dataset B (Bone fracture dataset) with predefined train/val/test splits.
+
+    This dataset has predefined splits: train/, val/, test/ folders,
+    each containing fractured/ and not fractured/ subfolders.
+
+    Args:
+        root_dir (str): Path to Bone fracture dataset directory (containing train/, val/, test/)
+        phase (str): One of 'train', 'val', or 'test'
+
+    Returns:
+        ImageFolder: Dataset with correct class mapping
+
+    Raises:
+        ValueError: If phase is invalid
+        FileNotFoundError: If directory structure is incorrect
+    """
+    if phase not in ['train', 'val', 'test']:
+        raise ValueError(f"phase must be 'train', 'val', or 'test', got {phase}")
+
+    phase_dir = os.path.join(root_dir, phase)
+    if not os.path.exists(phase_dir):
+        raise FileNotFoundError(f"Phase directory not found: {phase_dir}")
+
+    # Create dataset with ImageFolder
+    dataset = ImageFolder(
+        root=phase_dir,
+        transform=get_transforms(phase)
+    )
+
+    # Ensure correct class mapping: 'not fractured' -> 0, 'fractured' -> 1
+    original_classes = dataset.classes
+    if len(original_classes) != 2:
+        raise ValueError(f"Expected 2 classes, found {len(original_classes)}: {original_classes}")
+
+    # Remap to ensure correct labels regardless of alphabetical order
+    dataset.class_to_idx = {'fractured': 1, 'not fractured': 0}
+    dataset.classes = ['not fractured', 'fractured']
+
+    # Remap existing indices
+    for idx, (path, old_class) in enumerate(dataset.imgs):
+        folder_name = os.path.basename(os.path.dirname(path))
+        if folder_name == 'fractured':
+            dataset.imgs[idx] = (path, 1)
+            dataset.samples[idx] = (path, 1)
+        elif folder_name == 'not fractured':
+            dataset.imgs[idx] = (path, 0)
+            dataset.samples[idx] = (path, 0)
+
+    return dataset
 
 
 def get_class_weights(dataset: torch.utils.data.Dataset) -> torch.Tensor:
@@ -255,8 +257,8 @@ def get_combined_dataloader(root_A: str, root_B: str,
     Create combined dataloader from Dataset A and Dataset B with proper sampling.
 
     Args:
-        root_A (str): Path to Bone_Fracture_Binary_Classification directory
-        root_B (str): Path to Bone fracture dataset directory
+        root_A (str): Path to Bone_Fracture_Binary_Classification directory (contains fracture/ and normal/)
+        root_B (str): Path to Bone fracture dataset directory (contains train/, val/, test/)
         phase (str): One of 'train', 'val', or 'test'
         batch_size (int): Batch size for dataloader
         num_workers (int): Number of worker processes
@@ -265,7 +267,7 @@ def get_combined_dataloader(root_A: str, root_B: str,
         DataLoader: Combined dataloader with appropriate sampling strategy
     """
     # Load both datasets
-    dataset_a = get_dataset_A(root_A, phase)
+    dataset_a = get_dataset_A(root_A, phase=phase)
     dataset_b = get_dataset_B(root_B, phase=phase)
 
     # Combine datasets
