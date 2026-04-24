@@ -59,124 +59,15 @@ def get_transforms(phase: str) -> transforms.Compose:
         ])
 
 
-def get_dataset_A(root_dir: str, split_ratios: Tuple[float, float, float] = (0.7, 0.15, 0.15),
-                  phase: str = 'train', seed: int = 42) -> Subset:
+def get_dataset_A(root_dir: str, phase: str) -> ImageFolder:
     """
-    Load Dataset A (Bone_Fracture_Binary_Classification) with manual train/val/test split.
-
-    This dataset has no predefined splits, only fracture/ and normal/ folders.
-
-    Args:
-        root_dir (str): Path to Bone_Fracture_Binary_Classification directory (containing fracture/ and normal/)
-        split_ratios (Tuple[float, float, float]): (train_ratio, val_ratio, test_ratio)
-        phase (str): One of 'train', 'val', or 'test'
-        seed (int): Random seed for reproducibility
-
-    Returns:
-        Subset: Subset of dataset for the specified phase
-
-    Raises:
-        ValueError: If phase is invalid or split_ratios don't sum to 1.0
-        FileNotFoundError: If directory structure is incorrect
-    """
-    if phase not in ['train', 'val', 'test']:
-        raise ValueError(f"phase must be 'train', 'val', or 'test', got {phase}")
-
-    if not (0.99 <= sum(split_ratios) <= 1.01):
-        raise ValueError(f"split_ratios must sum to 1.0, got {sum(split_ratios)}")
-
-    fracture_dir = os.path.join(root_dir, 'fracture')
-    normal_dir = os.path.join(root_dir, 'normal')
-
-    if not os.path.exists(fracture_dir) or not os.path.exists(normal_dir):
-        raise FileNotFoundError(f"Dataset structure incorrect. Expected fracture/ and normal/ directories in {root_dir}")
-
-    # Load all image paths and labels
-    images = []
-    labels = []
-
-    # Load fractured images (label 1)
-    for img_name in os.listdir(fracture_dir):
-        img_path = os.path.join(fracture_dir, img_name)
-        if os.path.isfile(img_path) and img_name.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
-            images.append(img_path)
-            labels.append(1)
-
-    # Load normal images (label 0)
-    for img_name in os.listdir(normal_dir):
-        img_path = os.path.join(normal_dir, img_name)
-        if os.path.isfile(img_path) and img_name.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
-            images.append(img_path)
-            labels.append(0)
-
-    if len(images) == 0:
-        raise FileNotFoundError(f"No images found in {fracture_dir} or {normal_dir}")
-
-    # Split into train, val, test
-    train_ratio, val_ratio, test_ratio = split_ratios
-
-    # First split: train vs (val + test)
-    train_indices, temp_indices = train_test_split(
-        np.arange(len(images)),
-        test_size=(val_ratio + test_ratio),
-        random_state=seed,
-        stratify=np.array(labels)
-    )
-
-    # Second split: val vs test
-    val_size = val_ratio / (val_ratio + test_ratio)
-    val_indices, test_indices = train_test_split(
-        temp_indices,
-        test_size=(1 - val_size),
-        random_state=seed,
-        stratify=np.array(labels)[temp_indices]
-    )
-
-    # Create a simple dataset class for Dataset A
-    class SimpleImageDataset(torch.utils.data.Dataset):
-        def __init__(self, image_paths, labels, transform=None):
-            self.image_paths = image_paths
-            self.labels = labels
-            self.transform = transform
-
-        def __len__(self):
-            return len(self.image_paths)
-
-        def __getitem__(self, idx):
-            img_path = self.image_paths[idx]
-            label = self.labels[idx]
-            img = Image.open(img_path).convert('RGB')
-            if self.transform:
-                img = self.transform(img)
-            return img, label
-
-    # Create full dataset with all images
-    full_dataset = SimpleImageDataset(
-        images,
-        labels,
-        transform=get_transforms(phase)
-    )
-
-    # Return subset for the requested phase
-    if phase == 'train':
-        indices = train_indices
-    elif phase == 'val':
-        indices = val_indices
-    else:  # test
-        indices = test_indices
-
-    return Subset(full_dataset, indices)
-
-
-def get_dataset_B(root_dir: str, phase: str) -> ImageFolder:
-    """
-    Load Dataset B (Bone fracture dataset) with predefined train/val/test splits.
+    Load Dataset A (Bone_Fracture_Binary_Classification) with predefined splits.
 
     This dataset has predefined splits: train/, val/, test/ folders,
-    each containing fractured/ and not fractured/ subfolders.
+    each containing fractured/ and 'not fractured'/ subfolders.
 
     Args:
-        root_dir (str): Path to Bone fracture dataset directory (containing train/, val/, test/)
+        root_dir (str): Path to Bone_Fracture_Binary_Classification directory
         phase (str): One of 'train', 'val', or 'test'
 
     Returns:
@@ -221,6 +112,115 @@ def get_dataset_B(root_dir: str, phase: str) -> ImageFolder:
     return dataset
 
 
+def get_dataset_B(root_dir: str, split_ratios: Tuple[float, float, float] = (0.7, 0.15, 0.15),
+                  phase: str = 'train', seed: int = 42) -> Subset:
+    """
+    Load Dataset B (Bone fracture dataset) with manual train/val/test split.
+
+    This dataset has no predefined splits, only fracture/ and normal/ folders.
+
+    Args:
+        root_dir (str): Path to Bone fracture dataset directory
+        split_ratios (Tuple[float, float, float]): (train_ratio, val_ratio, test_ratio)
+        phase (str): One of 'train', 'val', or 'test'
+        seed (int): Random seed for reproducibility
+
+    Returns:
+        Subset: Subset of dataset for the specified phase
+
+    Raises:
+        ValueError: If phase is invalid or split_ratios don't sum to 1.0
+        FileNotFoundError: If directory structure is incorrect
+    """
+    if phase not in ['train', 'val', 'test']:
+        raise ValueError(f"phase must be 'train', 'val', or 'test', got {phase}")
+
+    if not (0.99 <= sum(split_ratios) <= 1.01):
+        raise ValueError(f"split_ratios must sum to 1.0, got {sum(split_ratios)}")
+
+    fracture_dir = os.path.join(root_dir, 'fracture')
+    normal_dir = os.path.join(root_dir, 'normal')
+
+    if not os.path.exists(fracture_dir) or not os.path.exists(normal_dir):
+        raise FileNotFoundError(f"Dataset structure incorrect. Expected 'fracture/' and 'normal/' directories in {root_dir}")
+
+    # Load all image paths and labels
+    images = []
+    labels = []
+
+    # Load fractured images (label 1)
+    for img_name in os.listdir(fracture_dir):
+        img_path = os.path.join(fracture_dir, img_name)
+        if os.path.isfile(img_path) and img_name.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+            images.append(img_path)
+            labels.append(1)
+
+    # Load normal images (label 0)
+    for img_name in os.listdir(normal_dir):
+        img_path = os.path.join(normal_dir, img_name)
+        if os.path.isfile(img_path) and img_name.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+            images.append(img_path)
+            labels.append(0)
+
+    if len(images) == 0:
+        raise FileNotFoundError(f"No images found in {fracture_dir} or {normal_dir}")
+
+    # Split into train, val, test
+    train_ratio, val_ratio, test_ratio = split_ratios
+
+    # First split: train vs (val + test)
+    train_indices, temp_indices = train_test_split(
+        np.arange(len(images)),
+        test_size=(val_ratio + test_ratio),
+        random_state=seed,
+        stratify=np.array(labels)
+    )
+
+    # Second split: val vs test
+    val_size = val_ratio / (val_ratio + test_ratio)
+    val_indices, test_indices = train_test_split(
+        temp_indices,
+        test_size=(1 - val_size),
+        random_state=seed,
+        stratify=np.array(labels)[temp_indices]
+    )
+
+    # Create a simple dataset class for Dataset B
+    class SimpleImageDataset(torch.utils.data.Dataset):
+        def __init__(self, image_paths, labels, transform=None):
+            self.image_paths = image_paths
+            self.labels = labels
+            self.transform = transform
+
+        def __len__(self):
+            return len(self.image_paths)
+
+        def __getitem__(self, idx):
+            img_path = self.image_paths[idx]
+            label = self.labels[idx]
+            img = Image.open(img_path).convert('RGB')
+            if self.transform:
+                img = self.transform(img)
+            return img, label
+
+    # Create full dataset with all images
+    full_dataset = SimpleImageDataset(
+        images,
+        labels,
+        transform=get_transforms(phase)
+    )
+
+    # Return subset for the requested phase
+    if phase == 'train':
+        indices = train_indices
+    elif phase == 'val':
+        indices = val_indices
+    else:  # test
+        indices = test_indices
+
+    return Subset(full_dataset, indices)
+
+
 def get_class_weights(dataset: torch.utils.data.Dataset) -> torch.Tensor:
     """
     Compute inverse-frequency class weights for handling class imbalance.
@@ -257,8 +257,8 @@ def get_combined_dataloader(root_A: str, root_B: str,
     Create combined dataloader from Dataset A and Dataset B with proper sampling.
 
     Args:
-        root_A (str): Path to Bone_Fracture_Binary_Classification directory (contains fracture/ and normal/)
-        root_B (str): Path to Bone fracture dataset directory (contains train/, val/, test/)
+        root_A (str): Path to Bone_Fracture_Binary_Classification directory
+        root_B (str): Path to Bone fracture dataset directory
         phase (str): One of 'train', 'val', or 'test'
         batch_size (int): Batch size for dataloader
         num_workers (int): Number of worker processes
