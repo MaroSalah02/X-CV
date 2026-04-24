@@ -9,6 +9,11 @@ import numpy as np
 from pathlib import Path
 from typing import Tuple, Optional, Dict
 from PIL import Image
+from PIL import ImageFile
+
+# Allow loading truncated/corrupted images
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+
 import torchvision.transforms as transforms
 from torchvision.datasets import ImageFolder
 from torch.utils.data import DataLoader, ConcatDataset, Subset, WeightedRandomSampler
@@ -196,12 +201,23 @@ def get_dataset_B(root_dir: str, split_ratios: Tuple[float, float, float] = (0.7
             return len(self.image_paths)
 
         def __getitem__(self, idx):
-            img_path = self.image_paths[idx]
-            label = self.labels[idx]
-            img = Image.open(img_path).convert('RGB')
-            if self.transform:
-                img = self.transform(img)
-            return img, label
+            max_retries = 5
+            for attempt in range(max_retries):
+                try:
+                    img_path = self.image_paths[idx]
+                    label = self.labels[idx]
+                    img = Image.open(img_path).convert('RGB')
+                    if self.transform:
+                        img = self.transform(img)
+                    return img, label
+                except (OSError, IOError, Exception) as e:
+                    # If image is corrupted, try next index
+                    idx = (idx + 1) % len(self.image_paths)
+                    if attempt == max_retries - 1:
+                        # Return a blank tensor if all retries fail
+                        print(f"⚠ Could not load image {self.image_paths[idx]}, using blank tensor")
+                        blank_img = torch.zeros(3, 224, 224)
+                        return blank_img, 0
 
     # Create full dataset with all images
     full_dataset = SimpleImageDataset(
@@ -224,6 +240,7 @@ def get_dataset_B(root_dir: str, split_ratios: Tuple[float, float, float] = (0.7
 def get_class_weights(dataset: torch.utils.data.Dataset) -> torch.Tensor:
     """
     Compute inverse-frequency class weights for handling class imbalance.
+    Skips corrupted/truncated images.
 
     Args:
         dataset (torch.utils.data.Dataset): Dataset to compute weights for
@@ -233,10 +250,20 @@ def get_class_weights(dataset: torch.utils.data.Dataset) -> torch.Tensor:
     """
     # Count samples per class
     class_counts = {}
+    skipped = 0
 
-    for _, label in tqdm(dataset, desc="Computing class weights"):
-        label = int(label)
-        class_counts[label] = class_counts.get(label, 0) + 1
+    for idx in tqdm(range(len(dataset)), desc="Computing class weights"):
+        try:
+            _, label = dataset[idx]
+            label = int(label)
+            class_counts[label] = class_counts.get(label, 0) + 1
+        except (OSError, IOError, Exception) as e:
+            # Skip corrupted images
+            skipped += 1
+            continue
+
+    if skipped > 0:
+        print(f"⚠ Skipped {skipped} corrupted images during weight computation")
 
     # Compute inverse-frequency weights
     total_samples = sum(class_counts.values())
