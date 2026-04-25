@@ -18,6 +18,5 @@ XRayFractureCV/
 BoneFractureByYolo/
 *.zip
 runs/
-yolo26n.pt
 test.jpg
 E:*/
