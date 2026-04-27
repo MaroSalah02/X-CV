@@ -113,8 +113,9 @@ def augment_dataset(dataset: DatasetDict, augmentation_params: dict) -> DatasetD
     target_count = augmentation_params.get("target_count_per_label") # Required
     selection_seed = augmentation_params.get("selection_seed", 42) # Optional, default 42
     generation_seed = augmentation_params.get("generation_seed", 42) # Optional, default 42
-    rotation_range = augmentation_params.get("rotation_range", 0) # Optional, default 0 degrees
-    flipping = augmentation_params.get("flipping", False) # Optional, default False
+    rotation_min = augmentation_params.get("rotation_min", 0) # Optional, default 0 degrees
+    rotation_max = augmentation_params.get("rotation_max", 0) # Optional, default 0 degrees
+    flipping_chance = augmentation_params.get("flipping_chance", 0) # Optional, default 0
     inverting = augmentation_params.get("inverting", False) # Optional, default False
     shift_range = augmentation_params.get("shift_range", 0) # Optional, default 0, is a 0-1 float representing max allowable shift in both dimensions
 
@@ -153,11 +154,17 @@ def augment_dataset(dataset: DatasetDict, augmentation_params: dict) -> DatasetD
         selected_items_idx = np.random.choice(len(item_list), size=augmentation_count, replace=True)
         np.random.seed(generation_seed)
 
+        rotation_signs = np.random.choice([-1, 1], size=augmentation_count)
+
+        flipping_factor = 1 if np.random.rand() < flipping_chance else 0
+        if label == "Chest":
+            flipping_factor = 0
+
         augmented_items = [{
             "image_with_augmentation_params": {
                 "image": item_list[idx]["image_with_augmentation_params"]["image"],
-                "rotation": np.random.uniform(-rotation_range, rotation_range),
-                "flipping": flipping and np.random.choice([True, False]),
+                "rotation": np.random.uniform(rotation_min, rotation_max) * rotation_signs[i],
+                "flipping": flipping_factor == 1,
                 "inverting": inverting and np.random.choice([True, False]),
                 "vertical_shift": np.random.uniform(-shift_range, shift_range),
                 "horizontal_shift": np.random.uniform(-shift_range, shift_range)
