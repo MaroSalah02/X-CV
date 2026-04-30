@@ -1,0 +1,112 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap");
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  --xcv-bg: #040712;
+  --xcv-bg-gradient: radial-gradient(
+    circle at top,
+    #111833 0%,
+    #040712 44%,
+    #02040b 100%
+  );
+  --xcv-surface: rgba(8, 12, 22, 0.84);
+  --xcv-border: rgba(255, 255, 255, 0.08);
+  --xcv-border-strong: rgba(255, 255, 255, 0.16);
+  --xcv-accent: #57d7ff;
+  --xcv-accent-bright: #8be9ff;
+  --xcv-text-primary: #eef4ff;
+  --xcv-text-secondary: #b1bfd2;
+  --xcv-text-muted: #6f7d93;
+  --xcv-success: #31e9b2;
+  --xcv-warning: #ffcb6b;
+  --xcv-danger: #ff6b86;
+  --xcv-font-body: "Space Grotesk", sans-serif;
+  --xcv-font-mono: "IBM Plex Mono", monospace;
+  --xcv-shadow-md: 0 18px 42px rgba(0, 0, 0, 0.34);
+  --xcv-shadow-lg: 0 26px 72px rgba(0, 0, 0, 0.44);
+}
+
+html {
+  min-height: 100%;
+  color-scheme: dark;
+  text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  font-family: var(--xcv-font-body);
+  color: var(--xcv-text-primary);
+  background: var(--xcv-bg-gradient);
+  background-color: var(--xcv-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+img {
+  max-width: 100%;
+}
+
+:focus-visible {
+  outline: 2px solid var(--xcv-accent-bright);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: rgba(87, 215, 255, 0.28);
+  color: var(--xcv-text-primary);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.26);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
