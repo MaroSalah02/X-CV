@@ -1,5 +1,6 @@
 from  Inference_Modules.region_classification import RegionClassifierModel
-from Pipeline.Inference_Modules.fracture_detection_bounding_box import FractureDetectionBoundingBoxModel
+from  Inference_Modules.fracture_detection import FractureDetectionModel
+from Inference_Modules.fracture_detection_bounding_box import FractureDetectionBoundingBoxModel
 from pathlib import Path
 from PIL import Image
 import os
@@ -16,25 +17,30 @@ pipeline_dir = Path(__file__).parent
 model_dir = pipeline_dir / "Inference_Modules/models/region_classification"
 region_classifier_model = RegionClassifierModel(model_dir=model_dir)
 
-# Initialize fracture detection model with best.pt
-fracture_model_path = pipeline_dir / "Inference_Modules/models/fracture_detection/best.pt"
-fracture_detection_model = FractureDetectionBoundingBoxModel(model_path=fracture_model_path)
+# Initialize fracture detection model (DenseNet121 for binary classification)
+fracture_detection_model_dir = pipeline_dir / "Inference_Modules/models/fracture_detection"
+fracture_detection_model = FractureDetectionModel(model_dir=fracture_detection_model_dir)
+
+# Initialize fracture bounding box detection model (RTDETR for bounding boxes)
+fracture_bbox_model_path = pipeline_dir / "Inference_Modules/models/fracture_detection_bounding_box/best.pt"
+fracture_detection_bouding_box_model = FractureDetectionBoundingBoxModel(model_path=fracture_bbox_model_path)
+
 app = FastAPI()
 
 async def run_pipeline(image: str):
     region_result = region_classifier_model.predict(image)
     yield {"step": "region_classification", "result": region_result}
 
-    # Run fracture detection
+    # Run fracture detection (binary classification)
     fracture_result = fracture_detection_model.predict(image)
     yield {"step": "fracture_detection", "result": fracture_result}
 
-    if fracture_result["has_fracture"]:
-        # Detections are already included in fracture_result
-        bbox_result = fracture_result["detections"]
+    # If fracture detected, get bounding boxes
+    if fracture_result:
+        bbox_result = fracture_detection_bouding_box_model.predict(image)
         yield {"step": "bounding_box", "result": bbox_result}
 
-    # same goes here now you get it
+    # LLM processing
     llm_output = None
     yield {"step": "llm", "result": {"text": llm_output}}
 
