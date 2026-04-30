@@ -1,5 +1,5 @@
 from  Inference_Modules.region_classification import RegionClassifierModel
-from  Inference_Modules.fracture_detection import FractureDetectionModel
+from Pipeline.Inference_Modules.fracture_detection_bounding_box import FractureDetectionBoundingBoxModel
 from pathlib import Path
 from PIL import Image
 import os
@@ -16,35 +16,26 @@ pipeline_dir = Path(__file__).parent
 model_dir = pipeline_dir / "Inference_Modules/models/region_classification"
 region_classifier_model = RegionClassifierModel(model_dir=model_dir)
 
-fracture_model_dir = pipeline_dir / "Inference_Modules/models/fracture_detection"
-fracture_detection_model = FractureDetectionModel(model_dir=fracture_model_dir)
-
+# Initialize fracture detection model with best.pt
+fracture_model_path = pipeline_dir / "Inference_Modules/models/fracture_detection/best.pt"
+fracture_detection_model = FractureDetectionBoundingBoxModel(model_path=fracture_model_path)
 app = FastAPI()
 
 async def run_pipeline(image: str):
     region_result = region_classifier_model.predict(image)
     yield {"step": "region_classification", "result": region_result}
 
-    # Getting the output of the fracture detection model
+    # Run fracture detection
     fracture_result = fracture_detection_model.predict(image)
-
     yield {"step": "fracture_detection", "result": fracture_result}
 
-    if fracture_result:
-        #should be the output of the bounding box model, but for testing we set it to None
-        bbox_result = None
+    if fracture_result["has_fracture"]:
+        # Detections are already included in fracture_result
+        bbox_result = fracture_result["detections"]
         yield {"step": "bounding_box", "result": bbox_result}
 
-    llm_prompt = (
-        f"Region classification result: {region_result}. "
-        f"Fracture detected: {'yes' if fracture_result else 'no'}. "
-        "Generate a short, clear clinical summary for the user."
-    )
-    llm_output = generate_llm_response(
-        llm_prompt,
-        is_fracture=fracture_result,
-        fracture_bone=region_result,
-    )
+    # same goes here now you get it
+    llm_output = None
     yield {"step": "llm", "result": {"text": llm_output}}
 
 
