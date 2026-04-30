@@ -5,6 +5,7 @@ import os
 from fastapi import FastAPI, WebSocket
 from PIL import Image
 import io
+from LLM_Module import generate_llm_response
 
 # Comment if not using an AMD RDNA3 GPU
 os.environ["HSA_OVERRIDE_GFX_VERSION"] = "11.0.0"
@@ -29,8 +30,16 @@ async def run_pipeline(image: str):
         bbox_result = None
         yield {"step": "bounding_box", "result": bbox_result}
 
-    #same goes here now you get it
-    llm_output = None
+    llm_prompt = (
+        f"Region classification result: {region_result}. "
+        f"Fracture detected: {'yes' if fracture_result else 'no'}. "
+        "Generate a short, clear clinical summary for the user."
+    )
+    llm_output = generate_llm_response(
+        llm_prompt,
+        is_fracture=fracture_result,
+        fracture_bone=region_result,
+    )
     yield {"step": "llm", "result": {"text": llm_output}}
 
 

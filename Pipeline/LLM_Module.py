@@ -2,10 +2,20 @@ import os
 from langchain_google_genai import ChatGoogleGenerativeAI
 import dotenv
 import base64
-from langchain.schema import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 
 dotenv.load_dotenv()
-key = os.environ["GOOGLE_API_KEY"]
+
+
+def get_model():
+    api_key = os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        raise RuntimeError("GOOGLE_API_KEY is not set")
+
+    return ChatGoogleGenerativeAI(
+        model="gemini-2.5-flash-lite",
+        google_api_key=api_key,
+    )
 
 
 def load_image_as_base64(path):
@@ -62,7 +72,7 @@ def generate_llm_response(user_input, is_fracture=False, fracture_bone=None, ima
         """)
     ]
     
-    model = ChatGoogleGenerativeAI(model="gemini-2.5-flash-lite")
+    model = get_model()
 
     user_message = build_multimodal_message(user_input, is_fracture, fracture_bone, image_path)
     messages.append(user_message)
