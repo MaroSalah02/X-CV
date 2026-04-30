@@ -1,4 +1,5 @@
 from  Inference_Modules.region_classification import RegionClassifierModel
+from Inference_Modules.fracture_detection import FractureDetectionModel
 from pathlib import Path
 from PIL import Image
 import os
@@ -13,23 +14,26 @@ os.environ["HSA_OVERRIDE_GFX_VERSION"] = "11.0.0"
 pipeline_dir = Path(__file__).parent
 model_dir = pipeline_dir / "Inference_Modules/models/region_classification"
 region_classifier_model = RegionClassifierModel(model_dir=model_dir)
+
+# Initialize fracture detection model with best.pt
+fracture_model_path = pipeline_dir / "Inference_Modules/models/fracture_detection/best.pt"
+fracture_detection_model = FractureDetectionModel(model_path=fracture_model_path)
 app = FastAPI()
 
 async def run_pipeline(image: str):
     region_result = region_classifier_model.predict(image)
     yield {"step": "region_classification", "result": region_result}
 
-    #should be the output of the region classifier, but for testing we set it to False
-    fracture_result = False
-
+    # Run fracture detection
+    fracture_result = fracture_detection_model.predict(image)
     yield {"step": "fracture_detection", "result": fracture_result}
 
-    if fracture_result:
-        #should be the output of the bounding box model, but for testing we set it to None
-        bbox_result = None
+    if fracture_result["has_fracture"]:
+        # Detections are already included in fracture_result
+        bbox_result = fracture_result["detections"]
         yield {"step": "bounding_box", "result": bbox_result}
 
-    #same goes here now you get it
+    # same goes here now you get it
     llm_output = None
     yield {"step": "llm", "result": {"text": llm_output}}
 
