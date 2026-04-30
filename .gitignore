@@ -20,3 +20,13 @@ Pipeline/.env
 
 .idea/*
 .vscode/*
+
+# Datasets
+data/
+FracAtlas/
+XRayFractureCV/
+BoneFractureByYolo/
+*.zip
+runs/
+test.jpg
+E:*/
