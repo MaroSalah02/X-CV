@@ -1,0 +1,46 @@
+{
+  "architectures": [
+    "MobileNetV2ForImageClassification"
+  ],
+  "classifier_dropout_prob": 0.2,
+  "depth_divisible_by": 8,
+  "depth_multiplier": 1.0,
+  "dtype": "float32",
+  "expand_ratio": 6,
+  "finegrained_output": true,
+  "first_layer_is_expansion": true,
+  "hidden_act": "relu6",
+  "id2label": {
+    "0": "Chest",
+    "1": "Elbow",
+    "2": "Finger",
+    "3": "Forearm",
+    "4": "Hand",
+    "5": "Humerus",
+    "6": "Shoulder",
+    "7": "Tibia_and_Fibula",
+    "8": "Wrist"
+  },
+  "image_size": 224,
+  "initializer_range": 0.02,
+  "label2id": {
+    "Chest": 0,
+    "Elbow": 1,
+    "Finger": 2,
+    "Forearm": 3,
+    "Hand": 4,
+    "Humerus": 5,
+    "Shoulder": 6,
+    "Tibia_and_Fibula": 7,
+    "Wrist": 8
+  },
+  "layer_norm_eps": 0.001,
+  "min_depth": 8,
+  "model_type": "mobilenet_v2",
+  "num_channels": 3,
+  "output_stride": 32,
+  "problem_type": "single_label_classification",
+  "semantic_loss_ignore_index": 255,
+  "tf_padding": true,
+  "transformers_version": "5.5.0"
+}

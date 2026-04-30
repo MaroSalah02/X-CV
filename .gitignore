@@ -1,12 +1,32 @@
 Model Fine-tuning/Datasets - Unsplit/*
 Model Fine-tuning/Datasets - Raw/*
 Model Fine-tuning/*/*/input/*
+Model Fine-tuning/*/*/output/checkpoints/*
+Model Fine-tuning/*/*/output/final_model/*
+Model Fine-tuning/*/*/*/input/*
 Model Fine-tuning/X-Ray Region Classification/cached_downloads/*
-Pipeline/Inference_Modules/models/*/*
 !.gitkeep
 
 .ipynb_checkpoints/
 
 __pycache__/
 Model Fine-tuning/*/*/output/checkpoints/checkpoint*
+Model Fine-tuning/*/*/*/output/*
 Model Fine-tuning/*/*/Archive/*
+xcv-app/node_modules/*
+.DS_Store
+.env
+Pipeline/.env
+
+.idea/*
+.vscode/*
+
+# Datasets
+data/
+FracAtlas/
+XRayFractureCV/
+BoneFractureByYolo/
+*.zip
+runs/
+test.jpg
+E:*/
