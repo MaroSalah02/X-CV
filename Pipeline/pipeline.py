@@ -1,4 +1,5 @@
 from  Inference_Modules.region_classification import RegionClassifierModel
+from  Inference_Modules.fracture_detection import FractureDetectionModel
 from pathlib import Path
 from PIL import Image
 import os
@@ -14,14 +15,18 @@ os.environ["HSA_OVERRIDE_GFX_VERSION"] = "11.0.0"
 pipeline_dir = Path(__file__).parent
 model_dir = pipeline_dir / "Inference_Modules/models/region_classification"
 region_classifier_model = RegionClassifierModel(model_dir=model_dir)
+
+fracture_model_dir = pipeline_dir / "Inference_Modules/models/fracture_detection"
+fracture_detection_model = FractureDetectionModel(model_dir=fracture_model_dir)
+
 app = FastAPI()
 
 async def run_pipeline(image: str):
     region_result = region_classifier_model.predict(image)
     yield {"step": "region_classification", "result": region_result}
 
-    #should be the output of the region classifier, but for testing we set it to False
-    fracture_result = False
+    # Getting the output of the fracture detection model
+    fracture_result = fracture_detection_model.predict(image)
 
     yield {"step": "fracture_detection", "result": fracture_result}
 
