@@ -1,0 +1,9 @@
+import os
+import uvicorn
+from pipeline import app
+
+
+if __name__ == "__main__":
+    host = os.environ.get("PIPELINE_HOST", "0.0.0.0")
+    port = int(os.environ.get("PIPELINE_PORT", "8000"))
+    uvicorn.run(app, host=host, port=port)
