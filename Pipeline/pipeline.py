@@ -1,12 +1,15 @@
 from  Inference_Modules.region_classification import RegionClassifierModel
-from Pipeline.Inference_Modules.fracture_detection_bounding_box import FractureDetectionBoundingBoxModel
+from  Inference_Modules.fracture_detection import FractureDetectionModel
+from Inference_Modules.fracture_detection_bounding_box import FractureDetectionBoundingBoxModel
 from pathlib import Path
 from PIL import Image
 import os
 from fastapi import FastAPI, WebSocket
-from PIL import Image
+from PIL import Image, ImageDraw
 import io
+import base64
 from LLM_Module import generate_llm_response
+import asyncio
 
 # Comment if not using an AMD RDNA3 GPU
 os.environ["HSA_OVERRIDE_GFX_VERSION"] = "11.0.0"
@@ -16,26 +19,60 @@ pipeline_dir = Path(__file__).parent
 model_dir = pipeline_dir / "Inference_Modules/models/region_classification"
 region_classifier_model = RegionClassifierModel(model_dir=model_dir)
 
-# Initialize fracture detection model with best.pt
-fracture_model_path = pipeline_dir / "Inference_Modules/models/fracture_detection/best.pt"
-fracture_detection_model = FractureDetectionBoundingBoxModel(model_path=fracture_model_path)
+# Initialize fracture detection model (DenseNet121 for binary classification)
+fracture_detection_model_dir = pipeline_dir / "Inference_Modules/models/fracture_detection"
+fracture_detection_model = FractureDetectionModel(model_dir=fracture_detection_model_dir)
+
+# Initialize fracture bounding box detection model (RTDETR for bounding boxes)
+fracture_bbox_model_path = pipeline_dir / "Inference_Modules/models/fracture_detection_bounding_box/best.pt"
+fracture_detection_bouding_box_model = FractureDetectionBoundingBoxModel(model_path=fracture_bbox_model_path)
+
 app = FastAPI()
 
-async def run_pipeline(image: str):
+async def run_pipeline(image: Image.Image):
     region_result = region_classifier_model.predict(image)
     yield {"step": "region_classification", "result": region_result}
 
-    # Run fracture detection
+    # Run fracture detection 
     fracture_result = fracture_detection_model.predict(image)
     yield {"step": "fracture_detection", "result": fracture_result}
 
-    if fracture_result["has_fracture"]:
-        # Detections are already included in fracture_result
-        bbox_result = fracture_result["detections"]
+    image_base64 = None
+
+    # If fracture detected, get bounding boxes
+    if fracture_result:
+        bbox_result = fracture_detection_bouding_box_model.predict(image)
+        
+        if bbox_result.get("has_fracture"):
+            draw = ImageDraw.Draw(image)
+            for det in bbox_result.get("detections", []):
+                x1, y1, x2, y2 = det["bbox_xyxy"]
+                draw.rectangle([x1, y1, x2, y2], outline="red", width=3)
+        
+        buffered = io.BytesIO()
+        image.convert("RGB").save(buffered, format="JPEG")
+        image_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        
+        bbox_result["image_base64"] = image_base64
         yield {"step": "bounding_box", "result": bbox_result}
 
-    # same goes here now you get it
-    llm_output = None
+    # LLM processing (run in thread to avoid blocking the event loop)
+    llm_prompt = (
+        f"Region classification result: {region_result}. "
+        f"Fracture detected: {'yes' if fracture_result else 'no'}. "
+        "Generate a short, clear clinical summary for the user."
+    )
+    try:
+        llm_output = await asyncio.to_thread(
+            generate_llm_response,
+            llm_prompt,
+            is_fracture=fracture_result,
+            fracture_bone=region_result,
+            image_base64=image_base64,
+        )
+    except Exception as e:
+        llm_output = f"LLM error: {e}"
+
     yield {"step": "llm", "result": {"text": llm_output}}
 
 

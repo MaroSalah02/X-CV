@@ -307,11 +307,20 @@ export default function App() {
       }
 
       if (STEP_SET.has(payload.step)) {
+        let displayResult = payload.result;
+        
+        if (payload.step === "bounding_box" && payload.result?.image_base64) {
+          setPreviewUrl(`data:image/jpeg;base64,${payload.result.image_base64}`);
+          
+          const { image_base64, ...restResult } = payload.result;
+          displayResult = restResult;
+        }
+
         setSteps((current) => {
           const next = { ...current };
           next[payload.step] = {
             status: "done",
-            result: payload.result,
+            result: displayResult,
           };
 
           if (payload.step === "fracture_detection" && !payload.result) {
@@ -326,9 +335,9 @@ export default function App() {
 
         appendEvent(
           payload.step,
-          formatStepResult(payload.step, payload.result),
+          formatStepResult(payload.step, displayResult),
         );
-        setActiveStep(getNextStep(payload.step, payload.result));
+        setActiveStep(getNextStep(payload.step, displayResult));
       }
     };
 
