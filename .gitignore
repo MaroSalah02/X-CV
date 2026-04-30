@@ -10,3 +10,5 @@ Pipeline/Inference_Modules/models/*/*
 __pycache__/
 Model Fine-tuning/*/*/output/checkpoints/checkpoint*
 Model Fine-tuning/*/*/Archive/*
+xcv-app/node_modules/*
+.DS_Store
