@@ -4,7 +4,7 @@ from ultralytics import RTDETR
 from pathlib import Path
 
 
-class FractureDetectionModel:
+class FractureDetectionBoundingBoxModel:
     def __init__(self, model_path, conf_threshold=0.25):
         self.model_path = Path(model_path)
         self.conf_threshold = conf_threshold #  Confidence threshold for detections (default: 0.25)

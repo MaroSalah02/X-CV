@@ -1,5 +1,5 @@
 from  Inference_Modules.region_classification import RegionClassifierModel
-from Inference_Modules.fracture_detection import FractureDetectionModel
+from Pipeline.Inference_Modules.fracture_detection_bounding_box import FractureDetectionBoundingBoxModel
 from pathlib import Path
 from PIL import Image
 import os
@@ -17,7 +17,7 @@ region_classifier_model = RegionClassifierModel(model_dir=model_dir)
 
 # Initialize fracture detection model with best.pt
 fracture_model_path = pipeline_dir / "Inference_Modules/models/fracture_detection/best.pt"
-fracture_detection_model = FractureDetectionModel(model_path=fracture_model_path)
+fracture_detection_model = FractureDetectionBoundingBoxModel(model_path=fracture_model_path)
 app = FastAPI()
 
 async def run_pipeline(image: str):
