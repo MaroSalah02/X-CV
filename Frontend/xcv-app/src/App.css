@@ -133,7 +133,7 @@
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.25fr);
+  grid-template-columns: 15vw 1fr;
   gap: 20px;
 }
 
@@ -286,11 +286,13 @@
   padding: 20px;
   display: grid;
   gap: 20px;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
 }
 
 .output-grid {
   display: grid;
-  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+  grid-template-columns: 3fr 2fr;
   gap: 20px;
 }
 
@@ -384,6 +386,7 @@
   color: var(--xcv-text-muted);
   font-size: 0.88rem;
 }
+
 
 .step-pill {
   padding: 4px 8px;
@@ -482,6 +485,7 @@
   .topbar {
     align-items: start;
     flex-direction: column;
+    flex: 1;
   }
 
   .topbar__status {
