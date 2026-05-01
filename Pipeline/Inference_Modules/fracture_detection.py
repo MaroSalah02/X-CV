@@ -57,6 +57,7 @@ class FractureDetectionModel:
         with torch.no_grad():
             output = self.model(img_tensor)
             probs = torch.softmax(output, dim=1)
-            pred_class = torch.argmax(probs, dim=1).item()
+            # Require 60% confidence to classify as fractured to minimize false positives
+            is_fractured = probs[0, 1].item() > 0.6
             
-        return pred_class == 1
+        return is_fractured
