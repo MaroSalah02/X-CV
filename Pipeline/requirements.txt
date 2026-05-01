@@ -1,0 +1,10 @@
+torch
+torchvision
+transformers
+ultralytics
+fastapi
+uvicorn[standard]
+pillow
+langchain-core
+langchain-google-genai
+python-dotenv
