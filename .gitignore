@@ -30,3 +30,39 @@ BoneFractureByYolo/
 runs/
 test.jpg
 E:*/
+
+
+# Dependencies
+xcv-app/node_modules/
+
+# Build outputs
+xcv-app/dist/
+xcv-app/dist-ssr/
+xcv-app/build/
+
+# Environment variables
+xcv-app/.env
+xcv-app/.env.local
+xcv-app/.env.*.local
+
+# Cache
+xcv-app/.vite/
+xcv-app/.eslintcache
+xcv-app/*.tsbuildinfo
+
+# Logs
+xcv-app/logs/
+xcv-app/*.log
+
+# Testing
+xcv-app/coverage/
+xcv-app/cypress/videos/
+xcv-app/cypress/screenshots/
+
+# Editor & OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+Pipeline/.env
