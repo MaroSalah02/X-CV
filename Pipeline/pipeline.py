@@ -5,14 +5,15 @@ from pathlib import Path
 from PIL import Image
 import os
 from fastapi import FastAPI, WebSocket
+from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, ImageDraw
 import io
 import base64
 from LLM_Module import generate_llm_response
 import asyncio
 
-# Comment if not using an AMD RDNA3 GPU
-os.environ["HSA_OVERRIDE_GFX_VERSION"] = "11.0.0"
+# Uncomment if using an AMD RDNA3 GPU locally
+# os.environ["HSA_OVERRIDE_GFX_VERSION"] = "11.0.0"
 
 
 pipeline_dir = Path(__file__).parent
@@ -28,6 +29,14 @@ fracture_bbox_model_path = pipeline_dir / "Inference_Modules/models/fracture_det
 fracture_detection_bouding_box_model = FractureDetectionBoundingBoxModel(model_path=fracture_bbox_model_path)
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Restrict to your frontend domain in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 async def run_pipeline(image: Image.Image):
     region_result = region_classifier_model.predict(image)
