@@ -369,7 +369,7 @@ export default function App() {
       <header className="topbar">
         <div>
           {/* <p className="eyebrow">X-CV pipeline bridge</p> */}
-          <h1 style={{ whiteSpace: "nowrap" }}>X-CV: your personal X-ray analysis assistant.</h1>
+          <h1 className="header_1">X-CV: your personal X-ray analysis assistant.</h1>
           <p className="lede" style={{ whiteSpace: "nowrap" }}>
             Upload an X-ray image and watch as it is analyzed in real-time.
           </p>
@@ -381,9 +381,9 @@ export default function App() {
         </div>
       </header>
 
-      <div className="body" style={ {paddingInline: "8vw"} }>
+      <div className="body">
         <section className="workspace">
-          <aside className="panel panel--upload" style={{ width: "15vw" }}>
+          <aside className="panel panel--upload">
             <div
               className="dropzone"
               role="button"

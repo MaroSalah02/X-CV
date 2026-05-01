@@ -51,7 +51,6 @@
 }
 
 .topbar h1 {
-  max-width: 16ch;
   font-size: clamp(2.4rem, 5vw, 5rem);
   line-height: 0.96;
   letter-spacing: -0.05em;
@@ -475,18 +474,25 @@
   word-break: break-word;
 }
 
+.body {
+  padding-inline: 8vw;
+}
+
 @media (max-width: 1120px) {
+
+  .body {
+    padding-inline: 8vw;
+  }
+
+  .panel--upload {
+    width: 15vw;
+  }
 
   .workspace,
   .output-grid {
     grid-template-columns: 1fr;
   }
 
-  .topbar {
-    align-items: start;
-    flex-direction: column;
-    flex: 1;
-  }
 
   .topbar__status {
     width: 100%;
@@ -496,6 +502,44 @@
 @media (max-width: 720px) {
   .app-shell {
     padding: 18px;
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: start;
+    gap: 12px;
+  }
+
+  .topbar h1 {
+    white-space: normal;
+  }
+
+  .topbar .lede {
+    white-space: normal !important;
+  }
+
+
+  .panel--upload {
+    width: 100%;
+  }
+
+  .body {
+    padding-inline: 2vw;
+  }
+
+
+  .workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .output-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar h1,
+  .lede {
+    white-space: normal;
   }
 
   .panel,
