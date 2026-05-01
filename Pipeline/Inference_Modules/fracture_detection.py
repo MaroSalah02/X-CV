@@ -6,8 +6,8 @@ from PIL import Image
 from pathlib import Path
 
 class FractureDetectionModel:
-    def __init__(self, model_dir):
-        self.output_dir = Path(model_dir)
+    def __init__(self, model_weights):
+        self.model_weights = Path(model_weights)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = self.load_model()
         self.transform = self.get_transforms()
@@ -26,10 +26,16 @@ class FractureDetectionModel:
 
     def load_model(self):
         model = self.build_densenet121()
-        model_path = self.output_dir / "densenet121_best.pth"
+        model_path = self.model_weights
         
         if model_path.exists():
-            model.load_state_dict(torch.load(model_path, map_location=self.device))
+            checkpoint = torch.load(model_path, map_location=self.device)
+            if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+                model.load_state_dict(checkpoint["model_state_dict"])
+            elif isinstance(checkpoint, dict) and "state_dict" in checkpoint:
+                model.load_state_dict(checkpoint["state_dict"])
+            else:
+                model.load_state_dict(checkpoint)
         else:
             print(f"Warning: Model weights not found at {model_path}")
             
