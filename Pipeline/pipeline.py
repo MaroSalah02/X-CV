@@ -13,7 +13,7 @@ from LLM_Module import generate_llm_response
 import asyncio
 
 # Uncomment if using an AMD RDNA3 GPU locally
-# os.environ["HSA_OVERRIDE_GFX_VERSION"] = "11.0.0"
+os.environ["HSA_OVERRIDE_GFX_VERSION"] = "11.0.0"
 
 
 pipeline_dir = Path(__file__).parent
