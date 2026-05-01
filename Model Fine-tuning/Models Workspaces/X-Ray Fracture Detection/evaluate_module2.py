@@ -38,7 +38,8 @@ def evaluate_on_test(model: nn.Module,
 
             outputs = model(images)
             probs = torch.softmax(outputs, dim=1)
-            _, predicted = torch.max(outputs, 1)
+            # Instead of default threshold of 0.5, require 60% confidence for Fracture
+            predicted = (probs[:, 1] > 0.6).long()
 
             all_preds.extend(predicted.cpu().numpy())
             all_labels.extend(labels.cpu().numpy())
@@ -136,7 +137,8 @@ def predict_single_image(model: nn.Module,
     with torch.no_grad():
         output = model(img_tensor)
         probs = torch.softmax(output, dim=1)
-        pred_class = torch.argmax(probs, dim=1).item()
+        # Instead of default threshold of 0.5, require 60% confidence for Fracture
+        pred_class = 1 if probs[0, 1].item() > 0.6 else 0
         confidence = probs[0, pred_class].item()
 
     # Map predictions to labels
