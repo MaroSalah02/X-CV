@@ -368,11 +368,10 @@ export default function App() {
 
       <header className="topbar">
         <div>
-          <p className="eyebrow">X-CV pipeline bridge</p>
-          <h1>Connect the X-ray pipeline to the React UI.</h1>
-          <p className="lede">
-            Upload an X-ray, stream it to the FastAPI websocket, and watch the
-            pipeline return region, fracture, and summary results in real time.
+          {/* <p className="eyebrow">X-CV pipeline bridge</p> */}
+          <h1 className="header_1">X-CV: your personal X-ray analysis assistant.</h1>
+          <p className="lede" style={{ whiteSpace: "nowrap" }}>
+            Upload an X-ray image and watch as it is analyzed in real-time.
           </p>
         </div>
 
@@ -382,129 +381,126 @@ export default function App() {
         </div>
       </header>
 
-      <section className="workspace">
-        <aside className="panel panel--upload">
-          <div
-            className="dropzone"
-            role="button"
-            tabIndex={0}
-            onClick={openFilePicker}
-            onKeyDown={onDropZoneKeyDown}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={handleDrop}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              hidden
-            />
-            <div className="dropzone__badge">Image input</div>
-            <h2>Drop an X-ray here</h2>
-            <p>
-              PNG or JPEG images are sent as binary websocket payloads to
-              <code>/scan</code>.
-            </p>
-            <button type="button" className="button button--ghost">
-              Choose file
-            </button>
-          </div>
-
-          <div className="action-row">
-            <button
-              type="button"
-              className="button button--primary"
-              onClick={runScan}
-              disabled={!selectedFile}
+      <div className="body">
+        <section className="workspace">
+          <aside className="panel panel--upload">
+            <div
+              className="dropzone"
+              role="button"
+              tabIndex={0}
+              onClick={openFilePicker}
+              onKeyDown={onDropZoneKeyDown}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={handleDrop}
             >
-              Run pipeline
-            </button>
-            <button
-              type="button"
-              className="button button--secondary"
-              onClick={resetScanState}
-            >
-              Reset
-            </button>
-          </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                hidden
+              />
+              <div className="dropzone__badge">Image input</div>
+              <h2>Drop an X-ray here</h2>
+              <p>
+                PNG, JPEG, and other common image formats are supported.
+              </p>
+              <button type="button" className="button button--ghost">
+                Choose file
+              </button>
+            </div>
 
-          <div className="meta-card">
-            <span className="meta-card__label">Selected file</span>
-            <strong>{selectedFileInfo ?? "No file selected yet"}</strong>
-            <p>
-              Point this UI at a local or deployed FastAPI backend by changing
-              VITE_PIPELINE_WS_URL.
-            </p>
-          </div>
+            <div className="action-row">
+              <button
+                type="button"
+                className="button button--primary"
+                onClick={runScan}
+                disabled={!selectedFile}
+              >
+                Run pipeline
+              </button>
+              <button
+                type="button"
+                className="button button--secondary"
+                onClick={resetScanState}
+              >
+                Reset
+              </button>
+            </div>
 
-          {errorMessage ? (
-            <div className="error-banner">{errorMessage}</div>
-          ) : null}
-        </aside>
+            <div className="meta-card">
+              <span className="meta-card__label">Selected file</span>
+              <strong style={ { paddingTop: "1.4vh" } }>{selectedFileInfo ?? "No file selected yet"}</strong>
+            </div>
 
-        <section className="panel panel--output">
-          <div className="output-grid">
-            <div className="preview-card">
-              <div className="preview-card__header">
-                <h2>Preview</h2>
-                <span className="preview-card__hint">binary upload</span>
+            {errorMessage ? (
+              <div className="error-banner">{errorMessage}</div>
+            ) : null}
+          </aside>
+
+          <section className="panel panel--output">
+            <div className="output-grid">
+              <div className="preview-card">
+                <div className="preview-card__header">
+                  <h2>Preview</h2>
+                  <span className="preview-card__hint">binary upload</span>
+                </div>
+
+                {previewUrl ? (
+                  <img
+                    className="preview-image"
+                    src={previewUrl}
+                    alt={selectedFile?.name ?? "X-ray preview"}
+                  />
+                ) : (
+                  <div className="preview-empty">
+                    <p>Choose an image to see the preview and start a scan.</p>
+                  </div>
+                )}
               </div>
 
-              {previewUrl ? (
-                <img
-                  className="preview-image"
-                  src={previewUrl}
-                  alt={selectedFile?.name ?? "X-ray preview"}
-                />
+              <div className="summary-card">
+                <div className="preview-card__header">
+                  <h2>Pipeline Summary</h2>
+                  <span className="preview-card__hint">live status</span>
+                </div>
+
+                <div className="summary-grid">
+                  {PIPELINE_STEPS.map((step) => (
+                    <PipelineStepCard
+                      key={step.id}
+                      step={step}
+                      data={steps[step.id]}
+                      active={activeStep === step.id}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* <div className="log-card">
+              <div className="preview-card__header">
+                <h2>Event log</h2>
+                <span className="preview-card__hint">ordered stream</span>
+              </div>
+
+              {events.length ? (
+                <ul className="event-list">
+                  {events.map((event) => (
+                    <ScanEvent key={event.id} event={event} />
+                  ))}
+                </ul>
               ) : (
-                <div className="preview-empty">
-                  <p>Choose an image to see the preview and start a scan.</p>
+                <div className="preview-empty preview-empty--compact">
+                  <p>
+                    The websocket output will appear here after you start a scan.
+                  </p>
                 </div>
               )}
-            </div>
-
-            <div className="summary-card">
-              <div className="preview-card__header">
-                <h2>Pipeline summary</h2>
-                <span className="preview-card__hint">live status</span>
-              </div>
-
-              <div className="summary-grid">
-                {PIPELINE_STEPS.map((step) => (
-                  <PipelineStepCard
-                    key={step.id}
-                    step={step}
-                    data={steps[step.id]}
-                    active={activeStep === step.id}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="log-card">
-            <div className="preview-card__header">
-              <h2>Event log</h2>
-              <span className="preview-card__hint">ordered stream</span>
-            </div>
-
-            {events.length ? (
-              <ul className="event-list">
-                {events.map((event) => (
-                  <ScanEvent key={event.id} event={event} />
-                ))}
-              </ul>
-            ) : (
-              <div className="preview-empty preview-empty--compact">
-                <p>
-                  The websocket output will appear here after you start a scan.
-                </p>
-              </div>
-            )}
-          </div>
+            </div> */}
+          </section>
         </section>
-      </section>
+      </div>
     </main>
   );
 }
