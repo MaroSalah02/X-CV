@@ -174,7 +174,8 @@ def train_model(model: nn.Module,
                 num_epochs: int = 30,
                 device: str = 'cuda',
                 save_dir: str = './weights',
-                patience: int = 7) -> Dict[str, list]:
+                patience: int = 5,
+                weight_decay: float = 1e-3) -> Dict[str, list]:
     """
     Main training loop with two-phase fine-tuning and early stopping.
 
@@ -194,11 +195,12 @@ def train_model(model: nn.Module,
 
     # Setup training
     criterion = nn.CrossEntropyLoss()
-    optimizer = get_optimizer(model)
+    optimizer = get_optimizer(model, weight_decay=weight_decay)
     scheduler = get_scheduler(optimizer, num_epochs)
     scaler = GradScaler()
 
     history = {'train_loss': [], 'val_loss': [], 'train_acc': [], 'val_acc': []}
+    best_val_loss = float('inf')
     best_val_acc = 0.0
     patience_counter = 0
     best_epoch = 0
@@ -222,7 +224,7 @@ def train_model(model: nn.Module,
             model = unfreeze_layers(model, num_layers_to_unfreeze=2)
             model = model.to(device)
             # Recreate optimizer with new parameter groups
-            optimizer = get_optimizer(model)
+            optimizer = get_optimizer(model, weight_decay=weight_decay)
 
         # Train one epoch
         train_loss, train_acc = train_one_epoch(
@@ -247,7 +249,8 @@ def train_model(model: nn.Module,
               f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
 
         # Early stopping and checkpoint
-        if val_acc > best_val_acc:
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
             best_val_acc = val_acc
             best_epoch = epoch
             patience_counter = 0
@@ -265,12 +268,12 @@ def train_model(model: nn.Module,
                 'history': history
             }
             torch.save(checkpoint, os.path.join(save_dir, 'checkpoint_best.pt'))
-            print(f"  ✓ Best model saved (Val Acc: {val_acc:.2f}%)")
+            print(f"  ✓ Best model saved (Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%)")
         else:
             patience_counter += 1
             if patience_counter >= patience:
-                print(f"\nEarly stopping triggered after {patience} epochs without improvement")
-                print(f"Best validation accuracy: {best_val_acc:.2f}% at epoch {best_epoch}")
+                print(f"\nEarly stopping triggered after {patience} epochs without improvement in validation loss")
+                print(f"Best validation loss: {best_val_loss:.4f} (Acc: {best_val_acc:.2f}%) at epoch {best_epoch}")
                 break
 
     # Save last model
@@ -289,7 +292,7 @@ def train_model(model: nn.Module,
 
     print("=" * 70)
     print(f"Training completed!")
-    print(f"Best Val Acc: {best_val_acc:.2f}% (Epoch {best_epoch})")
+    print(f"Best Val Loss: {best_val_loss:.4f} | Best Val Acc: {best_val_acc:.2f}% (Epoch {best_epoch})")
     print(f"Models saved to: {save_dir}")
 
     return history

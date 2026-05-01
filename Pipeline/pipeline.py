@@ -20,9 +20,8 @@ pipeline_dir = Path(__file__).parent
 model_dir = pipeline_dir / "Inference_Modules/models/region_classification"
 region_classifier_model = RegionClassifierModel(model_dir=model_dir)
 
-# Initialize fracture detection model (DenseNet121 for binary classification)
-fracture_detection_model_dir = pipeline_dir / "Inference_Modules/models/fracture_detection"
-fracture_detection_model = FractureDetectionModel(model_dir=fracture_detection_model_dir)
+fracture_model_weights = pipeline_dir / "Inference_Modules/models/fracture_detection/checkpoint_best.pt"
+fracture_detection_model = FractureDetectionModel(model_weights=fracture_model_weights)
 
 # Initialize fracture bounding box detection model (RTDETR for bounding boxes)
 fracture_bbox_model_path = pipeline_dir / "Inference_Modules/models/fracture_detection_bounding_box/best.pt"

@@ -40,13 +40,15 @@ def get_transforms(phase: str) -> transforms.Compose:
 
     if phase == 'train':
         return transforms.Compose([
-            transforms.RandomResizedCrop(224),
+            transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
             transforms.RandomRotation(15),
-            transforms.ColorJitter(brightness=0.2, contrast=0.2),
+            transforms.ColorJitter(brightness=0.3, contrast=0.3),
+            transforms.RandomAutocontrast(p=0.2),
             transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),
             transforms.ToTensor(),
+            transforms.RandomErasing(p=0.2, scale=(0.02, 0.1), value=1.0),
             transforms.Normalize(
                 mean=[0.485, 0.456, 0.406],
                 std=[0.229, 0.224, 0.225]
