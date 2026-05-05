@@ -17,7 +17,8 @@ from tqdm import tqdm
 
 def evaluate_on_test(model: nn.Module,
                      test_loader: DataLoader,
-                     device: str) -> None:
+                     device: str,
+                     threshold: float = 0.4) -> None:
     """
     Comprehensive evaluation on test set with metrics, confusion matrix, and ROC curve.
 
@@ -25,6 +26,7 @@ def evaluate_on_test(model: nn.Module,
         model (nn.Module): Trained model
         test_loader (DataLoader): Test dataloader
         device (str): Device to evaluate on
+        threshold (float): Decision threshold for Fracture class (default=0.4 to minimize False Negatives)
     """
     model.eval()
     all_preds = []
@@ -38,8 +40,8 @@ def evaluate_on_test(model: nn.Module,
 
             outputs = model(images)
             probs = torch.softmax(outputs, dim=1)
-            # Instead of default threshold of 0.5, require 60% confidence for Fracture
-            predicted = (probs[:, 1] > 0.6).long()
+            # Use parametrized threshold for Fracture inference
+            predicted = (probs[:, 1] >= threshold).long()
 
             all_preds.extend(predicted.cpu().numpy())
             all_labels.extend(labels.cpu().numpy())
@@ -104,7 +106,8 @@ def evaluate_on_test(model: nn.Module,
 
 def predict_single_image(model: nn.Module,
                          image_path: str,
-                         device: str = 'cuda') -> Dict:
+                         device: str = 'cuda',
+                         threshold: float = 0.4) -> Dict:
     """
     Predict fracture classification for a single image.
 
@@ -112,6 +115,7 @@ def predict_single_image(model: nn.Module,
         model (nn.Module): Trained model in eval mode
         image_path (str): Path to image file
         device (str): Device to run inference on
+        threshold (float): Decision threshold for Fracture class (default=0.4 to minimize False Negatives)
 
     Returns:
         Dict: Dictionary with keys: prediction, confidence, probabilities
@@ -137,8 +141,8 @@ def predict_single_image(model: nn.Module,
     with torch.no_grad():
         output = model(img_tensor)
         probs = torch.softmax(output, dim=1)
-        # Instead of default threshold of 0.5, require 60% confidence for Fracture
-        pred_class = 1 if probs[0, 1].item() > 0.6 else 0
+        # Use param threshold
+        pred_class = 1 if probs[0, 1].item() >= threshold else 0
         confidence = probs[0, pred_class].item()
 
     # Map predictions to labels

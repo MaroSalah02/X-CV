@@ -175,7 +175,8 @@ def train_model(model: nn.Module,
                 device: str = 'cuda',
                 save_dir: str = './weights',
                 patience: int = 5,
-                weight_decay: float = 1e-3) -> Dict[str, list]:
+                weight_decay: float = 1e-3,
+                class_weights: Optional[torch.Tensor] = None) -> Dict[str, list]:
     """
     Main training loop with two-phase fine-tuning and early stopping.
 
@@ -187,6 +188,8 @@ def train_model(model: nn.Module,
         device (str): Device to train on
         save_dir (str): Directory to save checkpoints
         patience (int): Early stopping patience
+        weight_decay (float): L2 regularization
+        class_weights (torch.Tensor, optional): Optional weights for CrossEntropyLoss
 
     Returns:
         Dict[str, list]: Training history with keys: train_loss, val_loss, train_acc, val_acc
@@ -194,7 +197,10 @@ def train_model(model: nn.Module,
     os.makedirs(save_dir, exist_ok=True)
 
     # Setup training
-    criterion = nn.CrossEntropyLoss()
+    if class_weights is not None:
+        criterion = nn.CrossEntropyLoss(weight=class_weights.to(device))
+    else:
+        criterion = nn.CrossEntropyLoss()
     optimizer = get_optimizer(model, weight_decay=weight_decay)
     scheduler = get_scheduler(optimizer, num_epochs)
     scaler = GradScaler()
