@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from torch.cuda.amp import autocast, GradScaler
+from torch.amp import autocast, GradScaler
 from torch.utils.data import DataLoader
 from sklearn.metrics import classification_report
 import matplotlib.pyplot as plt
@@ -97,7 +97,7 @@ def train_one_epoch(model: nn.Module,
         optimizer.zero_grad()
 
         # Mixed precision forward pass
-        with autocast():
+        with autocast(device_type='cuda' if 'cuda' in device else 'cpu'):
             outputs = model(images)
             loss = criterion(outputs, labels)
 

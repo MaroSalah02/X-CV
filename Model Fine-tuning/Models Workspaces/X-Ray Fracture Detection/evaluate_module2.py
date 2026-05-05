@@ -18,7 +18,7 @@ from tqdm import tqdm
 def evaluate_on_test(model: nn.Module,
                      test_loader: DataLoader,
                      device: str,
-                     threshold: float = 0.4) -> None:
+                     threshold: float = 0.5) -> None:
     """
     Comprehensive evaluation on test set with metrics, confusion matrix, and ROC curve.
 
@@ -107,7 +107,7 @@ def evaluate_on_test(model: nn.Module,
 def predict_single_image(model: nn.Module,
                          image_path: str,
                          device: str = 'cuda',
-                         threshold: float = 0.4) -> Dict:
+                         threshold: float = 0.5) -> Dict:
     """
     Predict fracture classification for a single image.
 
@@ -115,7 +115,7 @@ def predict_single_image(model: nn.Module,
         model (nn.Module): Trained model in eval mode
         image_path (str): Path to image file
         device (str): Device to run inference on
-        threshold (float): Decision threshold for Fracture class (default=0.4 to minimize False Negatives)
+        threshold (float): Decision threshold for Fracture class (default=0.5 to balance precision and recall)
 
     Returns:
         Dict: Dictionary with keys: prediction, confidence, probabilities
