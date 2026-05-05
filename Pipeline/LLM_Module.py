@@ -18,19 +18,13 @@ def get_model():
     )
 
 
-def load_image_as_base64(path):
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode("utf-8")
-
-
-def build_multimodal_message(text, is_fracture, fracture_bone, image_path=None):
+def build_multimodal_message(text, is_fracture, fracture_bone, image_base64=None):
     content = [{"type": "text", "text": text}]
     content.append({
             "type": "text",
             "text": f"Fracture detected in {fracture_bone}" if is_fracture else "No fracture detected"
         })
-    if image_path and is_fracture:
-        image_base64 = load_image_as_base64(image_path)
+    if image_base64 and is_fracture:
         content.append({
             "type": "image_url",
             "image_url": f"data:image/jpeg;base64,{image_base64}",
@@ -39,7 +33,7 @@ def build_multimodal_message(text, is_fracture, fracture_bone, image_path=None):
     return HumanMessage(content=content)
 
 
-def generate_llm_response(user_input, is_fracture=False, fracture_bone=None, image_path=None):
+def generate_llm_response(user_input, is_fracture=False, fracture_bone=None, image_base64=None):
 
     messages = [
         SystemMessage(content="""
@@ -74,7 +68,7 @@ def generate_llm_response(user_input, is_fracture=False, fracture_bone=None, ima
     
     model = get_model()
 
-    user_message = build_multimodal_message(user_input, is_fracture, fracture_bone, image_path)
+    user_message = build_multimodal_message(user_input, is_fracture, fracture_bone, image_base64)
     messages.append(user_message)
     
     response = model.invoke(messages)
