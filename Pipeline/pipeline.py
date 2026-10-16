@@ -1,12 +1,13 @@
 from  Inference_Modules.region_classification import RegionClassifierModel
 from  Inference_Modules.fracture_detection import FractureDetectionModel
 from Inference_Modules.fracture_detection_bounding_box import FractureDetectionBoundingBoxModel
+from Inference_Modules.xray_validation import XrayValidationModel
 from pathlib import Path
 from PIL import Image
 import os
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, UnidentifiedImageError
 import io
 import base64
 from LLM_Module import generate_llm_response
@@ -17,6 +18,13 @@ os.environ["HSA_OVERRIDE_GFX_VERSION"] = "11.0.0"
 
 
 pipeline_dir = Path(__file__).parent
+
+# Gate that rejects uploads which are not X-rays before any other model runs
+xray_validation_weights = pipeline_dir / "Inference_Modules/models/xray_validation/xray_gate.pt"
+xray_validation_model = XrayValidationModel(model_weights=xray_validation_weights)
+NOT_XRAY_MESSAGE = ("This image does not look like an X-ray that X-CV can analyze, so it was not analyzed. "
+                    "Please upload an X-ray of a bone or the chest.")
+
 model_dir = pipeline_dir / "Inference_Modules/models/region_classification"
 region_classifier_model = RegionClassifierModel(model_dir=model_dir)
 
@@ -38,6 +46,12 @@ app.add_middleware(
 )
 
 async def run_pipeline(image: Image.Image):
+    xray_check = xray_validation_model.predict(image)
+    yield {"step": "xray_check", "result": xray_check}
+    if not xray_check["is_xray"]:
+        # The models below always return an answer, even for photos or documents, so stop here
+        return
+
     region_result = region_classifier_model.predict(image)
     yield {"step": "region_classification", "result": region_result}
 
@@ -89,12 +103,24 @@ async def scan(websocket: WebSocket):
     await websocket.accept()
     try:
         image_bytes = await websocket.receive_bytes()
-        image = Image.open(io.BytesIO(image_bytes))  # PIL Image, ready to use
+        try:
+            image = Image.open(io.BytesIO(image_bytes))  # PIL Image, ready to use
+            image.load()
+        except (UnidentifiedImageError, OSError):
+            await websocket.send_json({"step": "error", "detail": "The uploaded file is not a readable image. "
+                                                                  "Please upload an X-ray as PNG or JPEG."})
+            return
 
+        rejected = False
         async for update in run_pipeline(image):
             await websocket.send_json(update)
+            if update["step"] == "xray_check" and not update["result"]["is_xray"]:
+                rejected = True
 
-        await websocket.send_json({"step": "pipeline", "status": "complete"})
+        if rejected:
+            await websocket.send_json({"step": "pipeline", "status": "rejected", "detail": NOT_XRAY_MESSAGE})
+        else:
+            await websocket.send_json({"step": "pipeline", "status": "complete"})
 
     except Exception as e:
         await websocket.send_json({"step": "error", "detail": str(e)})
