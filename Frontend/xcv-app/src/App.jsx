@@ -12,6 +12,11 @@ const PIPELINE_WS_URL = _envUrl ?? `${_proto}://${_host}:8000/scan`;
 
 const PIPELINE_STEPS = [
   {
+    id: "xray_check",
+    title: "X-ray check",
+    description: "Confirms the upload is an X-ray before analyzing it.",
+  },
+  {
     id: "region_classification",
     title: "Region classification",
     description: "Identifies the anatomical region in the X-ray.",
@@ -48,12 +53,20 @@ const statusLabels = {
   connecting: "Connecting",
   running: "Running scan",
   complete: "Scan complete",
+  rejected: "Image rejected",
   error: "Connection error",
 };
 
 function formatStepResult(stepId, result) {
   if (result == null) {
     return "No result returned.";
+  }
+
+  if (stepId === "xray_check" && typeof result === "object") {
+    const verdict = result.is_xray ? "X-ray detected" : "Not a supported X-ray";
+    return result.xray_probability == null
+      ? verdict
+      : `${verdict} (X-ray probability ${(result.xray_probability * 100).toFixed(1)}%)`;
   }
 
   if (stepId === "llm") {
@@ -78,6 +91,10 @@ function formatStepResult(stepId, result) {
 }
 
 function getNextStep(currentStep, result) {
+  if (currentStep === "xray_check") {
+    return result?.is_xray ? "region_classification" : null;
+  }
+
   if (currentStep === "region_classification") {
     return "fracture_detection";
   }
@@ -257,7 +274,7 @@ export default function App() {
     setConnectionStatus("connecting");
     setSteps(createInitialSteps());
     setEvents([]);
-    setActiveStep("region_classification");
+    setActiveStep("xray_check");
 
     const socket = new WebSocket(PIPELINE_WS_URL);
     socketRef.current = socket;
@@ -297,9 +314,16 @@ export default function App() {
       }
 
       if (payload.step === "pipeline") {
-        setConnectionStatus(
-          payload.status === "complete" ? "complete" : "error",
-        );
+        if (payload.status === "rejected") {
+          setConnectionStatus("rejected");
+          setErrorMessage(
+            payload.detail || "This image does not look like a supported X-ray.",
+          );
+        } else {
+          setConnectionStatus(
+            payload.status === "complete" ? "complete" : "error",
+          );
+        }
         setActiveStep(null);
         appendEvent("pipeline", `Pipeline ${payload.status}.`);
         socket.close();
@@ -316,12 +340,24 @@ export default function App() {
           displayResult = restResult;
         }
 
+        const notXray =
+          payload.step === "xray_check" && !payload.result?.is_xray;
+
         setSteps((current) => {
           const next = { ...current };
           next[payload.step] = {
-            status: "done",
+            status: notXray ? "rejected" : "done",
             result: displayResult,
           };
+
+          if (notXray) {
+            PIPELINE_STEPS.slice(1).forEach((step) => {
+              next[step.id] = {
+                status: "skipped",
+                result: "Skipped because the image is not a supported X-ray.",
+              };
+            });
+          }
 
           if (payload.step === "fracture_detection" && !payload.result) {
             next.bounding_box = {

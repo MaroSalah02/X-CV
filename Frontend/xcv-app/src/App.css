@@ -122,7 +122,8 @@
   border-color: rgba(0, 229, 160, 0.16);
 }
 
-.status-chip--error {
+.status-chip--error,
+.status-chip--rejected {
   color: var(--xcv-danger);
   background: rgba(255, 77, 109, 0.08);
   border-color: rgba(255, 77, 109, 0.16);
@@ -369,6 +370,10 @@
   border-color: rgba(255, 179, 71, 0.18);
 }
 
+.step-card--rejected {
+  border-color: rgba(255, 77, 109, 0.24);
+}
+
 .step-card__header {
   display: flex;
   justify-content: space-between;
@@ -418,6 +423,12 @@
   color: var(--xcv-warning);
   border-color: rgba(255, 179, 71, 0.18);
   background: rgba(255, 179, 71, 0.06);
+}
+
+.step-pill--rejected {
+  color: var(--xcv-danger);
+  border-color: rgba(255, 77, 109, 0.2);
+  background: rgba(255, 77, 109, 0.08);
 }
 
 .step-card__result {
