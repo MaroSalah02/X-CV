@@ -2,158 +2,168 @@
 Evaluation and inference utilities for fracture detection model.
 """
 
+from typing import Dict, Optional, Sequence
+
+import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from sklearn.metrics import classification_report, confusion_matrix, roc_curve, auc
+from sklearn.metrics import classification_report, confusion_matrix, roc_curve, auc, roc_auc_score
 import matplotlib.pyplot as plt
 import seaborn as sns
 from PIL import Image
-import torchvision.transforms as transforms
-import numpy as np
-from typing import Dict
-from tqdm import tqdm
+
+from data_preprocessing import get_transforms, load_xray
+from train import predict_probs
+
+
+def binary_metrics(labels: np.ndarray, probs: np.ndarray, threshold: float) -> Dict[str, float]:
+    """AUC, accuracy, sensitivity, specificity, precision and F1 at a threshold."""
+    preds = (probs > threshold).astype(int)
+    tp = int(((preds == 1) & (labels == 1)).sum())
+    tn = int(((preds == 0) & (labels == 0)).sum())
+    fp = int(((preds == 1) & (labels == 0)).sum())
+    fn = int(((preds == 0) & (labels == 1)).sum())
+    sens = tp / max(tp + fn, 1)
+    spec = tn / max(tn + fp, 1)
+    prec = tp / max(tp + fp, 1)
+    return {
+        'n': len(labels),
+        'pos': int(labels.sum()),
+        'auc': roc_auc_score(labels, probs) if 0 < labels.sum() < len(labels) else float('nan'),
+        'accuracy': (tp + tn) / len(labels),
+        'balanced_acc': (sens + spec) / 2,
+        'sensitivity': sens,
+        'specificity': spec,
+        'precision': prec,
+        'f1': 2 * prec * sens / max(prec + sens, 1e-12),
+    }
 
 
 def evaluate_on_test(model: nn.Module,
                      test_loader: DataLoader,
-                     device: str) -> None:
+                     device: str,
+                     threshold: Optional[float] = None,
+                     sources: Optional[Sequence[str]] = None,
+                     tta: Optional[bool] = None,
+                     plot: bool = True) -> Dict:
     """
-    Comprehensive evaluation on test set with metrics, confusion matrix, and ROC curve.
+    Comprehensive evaluation on the test set: classification report, confusion matrix,
+    ROC curve and a per-source breakdown (each dataset can behave very differently).
 
     Args:
-        model (nn.Module): Trained model
-        test_loader (DataLoader): Test dataloader
-        device (str): Device to evaluate on
+        model: trained model (if loaded with train.load_model, its stored threshold is used)
+        test_loader: DataLoader over the test split (shuffle=False)
+        device: device to evaluate on
+        threshold: decision threshold on P(fractured); defaults to the checkpoint's tuned value
+        sources: per-sample source names aligned with test_loader.dataset (e.g. 'A', 'C')
+        tta: horizontal-flip test-time augmentation; defaults to the checkpoint setting
+        plot: draw the confusion matrix / ROC figures
+
+    Returns:
+        Dict with overall metrics, per-source metrics, probabilities and labels
     """
-    model.eval()
-    all_preds = []
-    all_labels = []
-    all_probs = []
+    meta = getattr(model, 'fracture_meta', {}) or {}
+    if threshold is None:
+        threshold = meta.get('threshold', 0.5)
+    if tta is None:
+        tta = meta.get('tta', True)
 
-    print("\nEvaluating on test set...")
-    with torch.no_grad():
-        for images, labels in tqdm(test_loader, desc='Test evaluation'):
-            images, labels = images.to(device), labels.to(device)
+    print(f"\nEvaluating on test set (threshold={threshold:.3f}, flip-TTA={tta})...")
+    probs, labels, _ = predict_probs(model, test_loader, device, tta=tta)
+    preds = (probs > threshold).astype(int)
 
-            outputs = model(images)
-            probs = torch.softmax(outputs, dim=1)
-            # Instead of default threshold of 0.5, require 60% confidence for Fracture
-            predicted = (probs[:, 1] > 0.6).long()
-
-            all_preds.extend(predicted.cpu().numpy())
-            all_labels.extend(labels.cpu().numpy())
-            all_probs.extend(probs[:, 1].cpu().numpy())  # Probability of fracture
-
-    all_preds = np.array(all_preds)
-    all_labels = np.array(all_labels)
-    all_probs = np.array(all_probs)
-
-    # Classification Report
     print("\n" + "=" * 70)
     print("Classification Report")
     print("=" * 70)
-    report = classification_report(
-        all_labels,
-        all_preds,
-        target_names=['Not Fractured', 'Fractured'],
-        digits=4
-    )
-    print(report)
+    print(classification_report(labels, preds, target_names=['Not Fractured', 'Fractured'], digits=4))
 
-    # Confusion Matrix
-    print("=" * 70)
+    cm = confusion_matrix(labels, preds)
     print("Confusion Matrix")
-    print("=" * 70)
-    cm = confusion_matrix(all_labels, all_preds)
     print(cm)
 
-    # Plot Confusion Matrix
-    fig, ax = plt.subplots(figsize=(8, 6))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax,
-                xticklabels=['Not Fractured', 'Fractured'],
-                yticklabels=['Not Fractured', 'Fractured'],
-                cbar_kws={'label': 'Count'})
-    ax.set_ylabel('True Label', fontsize=12)
-    ax.set_xlabel('Predicted Label', fontsize=12)
-    ax.set_title('Confusion Matrix - Test Set', fontsize=14, fontweight='bold')
-    plt.tight_layout()
-    plt.show()
+    overall = binary_metrics(labels, probs, threshold)
+    per_source = None
+    if sources is not None:
+        sources = np.asarray(sources)
+        rows = {s: binary_metrics(labels[sources == s], probs[sources == s], threshold)
+                for s in sorted(set(sources))}
+        rows['ALL'] = overall
+        per_source = pd.DataFrame(rows).T
+        print("\n" + "=" * 70)
+        print("Per-source metrics")
+        print("=" * 70)
+        print(per_source.round(4).to_string())
 
-    # ROC Curve
-    fpr, tpr, thresholds = roc_curve(all_labels, all_probs)
+    fpr, tpr, _ = roc_curve(labels, probs)
     roc_auc = auc(fpr, tpr)
 
-    fig, ax = plt.subplots(figsize=(8, 6))
-    ax.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (AUC = {roc_auc:.4f})')
-    ax.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--', label='Random Classifier')
-    ax.set_xlim([0.0, 1.0])
-    ax.set_ylim([0.0, 1.05])
-    ax.set_xlabel('False Positive Rate', fontsize=12)
-    ax.set_ylabel('True Positive Rate', fontsize=12)
-    ax.set_title('ROC Curve - Test Set', fontsize=14, fontweight='bold')
-    ax.legend(loc='lower right', fontsize=11)
-    ax.grid(True, alpha=0.3)
-    plt.tight_layout()
-    plt.show()
+    if plot:
+        fig, axes = plt.subplots(1, 2, figsize=(15, 6))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=axes[0],
+                    xticklabels=['Not Fractured', 'Fractured'],
+                    yticklabels=['Not Fractured', 'Fractured'],
+                    cbar_kws={'label': 'Count'})
+        axes[0].set_ylabel('True Label')
+        axes[0].set_xlabel('Predicted Label')
+        axes[0].set_title('Confusion Matrix - Test Set', fontweight='bold')
+
+        axes[1].plot(fpr, tpr, lw=2, label=f'All (AUC = {roc_auc:.4f})')
+        if sources is not None:
+            for s in sorted(set(sources)):
+                m = sources == s
+                if 0 < labels[m].sum() < m.sum():
+                    f, t, _ = roc_curve(labels[m], probs[m])
+                    axes[1].plot(f, t, lw=1.2, label=f'{s} (AUC = {auc(f, t):.4f})')
+        axes[1].plot([0, 1], [0, 1], color='gray', lw=1, linestyle='--')
+        axes[1].set_xlabel('False Positive Rate')
+        axes[1].set_ylabel('True Positive Rate')
+        axes[1].set_title('ROC Curve - Test Set', fontweight='bold')
+        axes[1].legend(loc='lower right')
+        axes[1].grid(True, alpha=0.3)
+        plt.tight_layout()
+        plt.show()
 
     print("=" * 70)
     print(f"ROC AUC Score: {roc_auc:.4f}")
     print("=" * 70)
 
+    return {'overall': overall, 'per_source': per_source, 'probs': probs, 'labels': labels,
+            'threshold': threshold}
+
 
 def predict_single_image(model: nn.Module,
                          image_path: str,
-                         device: str = 'cuda') -> Dict:
+                         device: str = 'cuda',
+                         threshold: Optional[float] = None,
+                         img_size: Optional[int] = None) -> Dict:
     """
-    Predict fracture classification for a single image.
-
-    Args:
-        model (nn.Module): Trained model in eval mode
-        image_path (str): Path to image file
-        device (str): Device to run inference on
+    Predict fracture classification for a single image using the checkpoint's
+    preprocessing, threshold and TTA settings.
 
     Returns:
-        Dict: Dictionary with keys: prediction, confidence, probabilities
+        Dict: prediction, confidence, probabilities, threshold
     """
-    # Load and preprocess image
-    img = Image.open(image_path).convert('RGB')
+    meta = getattr(model, 'fracture_meta', {}) or {}
+    threshold = meta.get('threshold', 0.5) if threshold is None else threshold
+    img_size = meta.get('img_size', 224) if img_size is None else img_size
 
-    # Apply test transforms (same as validation)
-    transform = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225]
-        )
-    ])
+    img = load_xray(Image.open(image_path))
+    img_tensor = get_transforms('test', img_size=img_size)(img).unsqueeze(0).to(device)
 
-    img_tensor = transform(img).unsqueeze(0).to(device)
-
-    # Inference
     model.eval()
     with torch.no_grad():
-        output = model(img_tensor)
-        probs = torch.softmax(output, dim=1)
-        # Instead of default threshold of 0.5, require 60% confidence for Fracture
-        pred_class = 1 if probs[0, 1].item() > 0.6 else 0
-        confidence = probs[0, pred_class].item()
+        probs = torch.softmax(model(img_tensor), dim=1)
+        if meta.get('tta', True):
+            probs = 0.5 * (probs + torch.softmax(model(torch.flip(img_tensor, dims=[3])), dim=1))
+    p_fx = probs[0, 1].item()
+    pred_class = 1 if p_fx > threshold else 0
 
-    # Map predictions to labels
     class_labels = ['Not Fractured', 'Fractured']
-    prediction = class_labels[pred_class]
-
-    probabilities = {
-        'Fractured': probs[0, 1].item(),
-        'Not Fractured': probs[0, 0].item()
+    return {
+        'prediction': class_labels[pred_class],
+        'confidence': p_fx if pred_class == 1 else 1 - p_fx,
+        'probabilities': {'Fractured': p_fx, 'Not Fractured': 1 - p_fx},
+        'threshold': threshold,
     }
-
-    result = {
-        'prediction': prediction,
-        'confidence': confidence,
-        'probabilities': probabilities
-    }
-
-    return result

@@ -1,5 +1,9 @@
 """
 DenseNet121 model architecture for binary fracture classification.
+
+The classifier head layout (Linear-BN-ReLU-Dropout-Linear) is kept identical to the
+one rebuilt in Pipeline/Inference_Modules/fracture_detection.py so checkpoints stay
+loadable by the inference pipeline.
 """
 
 import torch
@@ -10,29 +14,33 @@ from typing import Tuple
 
 def build_densenet121(num_classes: int = 2,
                       pretrained: bool = True,
-                      dropout_rate: float = 0.5) -> nn.Module:
+                      dropout_rate: float = 0.5,
+                      memory_efficient: bool = False) -> nn.Module:
     """
     Build a DenseNet121 model with replaced classifier head for binary classification.
+
+    The backbone starts frozen; training code decides when to unfreeze it
+    (see set_backbone_trainable / unfreeze_layers).
 
     Args:
         num_classes (int): Number of output classes (default: 2 for binary)
         pretrained (bool): Whether to load ImageNet pretrained weights
         dropout_rate (float): Dropout rate for regularization
+        memory_efficient (bool): Use gradient checkpointing inside dense blocks
+            (much lower memory at higher resolutions, ~20% slower)
 
     Returns:
         nn.Module: DenseNet121 model with custom classifier head
     """
-    # Load pretrained DenseNet121
-    model = models.densenet121(pretrained=pretrained, progress=True)
+    weights = models.DenseNet121_Weights.IMAGENET1K_V1 if pretrained else None
+    model = models.densenet121(weights=weights, memory_efficient=memory_efficient)
 
     # Freeze all backbone layers initially
     for param in model.parameters():
         param.requires_grad = False
 
-    # Get input features for classifier
     num_features = model.classifier.in_features  # 1024
 
-    # Replace classifier with custom head
     model.classifier = nn.Sequential(
         nn.Linear(num_features, 512),
         nn.BatchNorm1d(512),
@@ -41,10 +49,21 @@ def build_densenet121(num_classes: int = 2,
         nn.Linear(512, num_classes)
     )
 
-    # Unfreeze classifier for training
     for param in model.classifier.parameters():
         param.requires_grad = True
 
+    return model
+
+
+def set_backbone_trainable(model: nn.Module, trainable: bool) -> nn.Module:
+    """
+    Freeze or unfreeze the whole convolutional backbone (all dense blocks,
+    transition layers and the final norm5). The classifier always stays trainable.
+    """
+    for param in model.features.parameters():
+        param.requires_grad = trainable
+    for param in model.classifier.parameters():
+        param.requires_grad = True
     return model
 
 
@@ -53,6 +72,10 @@ def unfreeze_layers(model: nn.Module,
     """
     Unfreeze the last N DenseBlocks and the classifier head for fine-tuning.
 
+    Note: this leaves transition layers and norm5 frozen. Prefer
+    set_backbone_trainable(model, True) for full fine-tuning, which works better
+    for X-rays because the domain is far from ImageNet.
+
     Args:
         model (nn.Module): DenseNet121 model
         num_layers_to_unfreeze (int): Number of DenseBlocks to unfreeze from the end
@@ -60,16 +83,13 @@ def unfreeze_layers(model: nn.Module,
     Returns:
         nn.Module: Model with unfrozen layers
     """
-    # Get the DenseNet features
     features = model.features
 
-    # DenseBlocks are: denseblock1, denseblock2, denseblock3, denseblock4
     dense_blocks = []
     for name, module in features.named_children():
         if 'denseblock' in name:
             dense_blocks.append((name, module))
 
-    # Unfreeze last num_layers_to_unfreeze blocks
     num_to_unfreeze = min(num_layers_to_unfreeze, len(dense_blocks))
 
     unfrozen_names = []
@@ -80,7 +100,6 @@ def unfreeze_layers(model: nn.Module,
             param.requires_grad = True
         unfrozen_names.append(name)
 
-    # Ensure classifier is unfrozen
     for param in model.classifier.parameters():
         param.requires_grad = True
     unfrozen_names.append('classifier')
