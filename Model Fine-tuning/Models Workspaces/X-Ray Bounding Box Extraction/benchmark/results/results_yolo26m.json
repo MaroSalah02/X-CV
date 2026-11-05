@@ -1,0 +1,23 @@
+{
+  "model": "yolo26m",
+  "params_M": 20.350223,
+  "epochs": 24,
+  "train_hours": 1.3718098042408626,
+  "budget_hours": 1.25,
+  "gpu": "Tesla T4",
+  "n_test_images": 399,
+  "n_test_boxes": 241,
+  "test": {
+    "mAP50": 0.20014971481021787,
+    "mAP50_95": 0.06500413165006638,
+    "AR100": 0.3775933609958506,
+    "precision@0.25": 0.875,
+    "recall@0.25": 0.029045643153526972,
+    "F1@0.25": 0.05622489959839357,
+    "image_sensitivity@0.25": 0.03773584905660377,
+    "image_specificity@0.25": 1.0,
+    "latency_ms_per_image": 30.87169885635376,
+    "ultralytics_mAP50": 0.17622877948977633,
+    "ultralytics_mAP50_95": 0.060991207653281476
+  }
+}
