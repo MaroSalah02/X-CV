@@ -1,0 +1,52 @@
+{
+  "n_input_images": 5582,
+  "n_groups": 2662,
+  "largest_groups": [
+    35,
+    15,
+    13,
+    12,
+    11,
+    10,
+    10,
+    10,
+    10,
+    10
+  ],
+  "stem_links": 2806,
+  "pixel_merges": 114,
+  "cross_source_merges": 0,
+  "polygon_lines_converted": 2388,
+  "shared_groups_between_splits": {
+    "train&val": 0,
+    "train&test": 0,
+    "val&test": 0
+  },
+  "dropped_duplicates_in_val_test": 862,
+  "splits": {
+    "test": {
+      "bone_fx": 110,
+      "images": 399,
+      "boxes": 241,
+      "bone_bg": 88,
+      "fracatlas_fx": 102,
+      "fracatlas_bg": 99
+    },
+    "train": {
+      "bone_fx": 1448,
+      "images": 3922,
+      "boxes": 2330,
+      "bone_bg": 1467,
+      "fracatlas_fx": 504,
+      "fracatlas_bg": 503
+    },
+    "val": {
+      "bone_bg": 85,
+      "images": 399,
+      "boxes": 270,
+      "bone_fx": 113,
+      "fracatlas_fx": 102,
+      "fracatlas_bg": 99
+    }
+  }
+}
